@@ -322,8 +322,15 @@ void InputMethodFilter::notifySurrounding(const String& text, uint64_t cursorPos
     m_surrounding.text = text;
     m_surrounding.cursorPosition = cursorPosition;
     m_surrounding.selectionPosition = selectionPosition;
-    if (m_context)
-        notifySurroundingToContext();
+    if (!m_context)
+        return;
+
+    notifySurroundingToContext();
+    // The changes made by the input method are already in m_surrounding, so this text was changed by something else,
+    // like a script, the user moving the cursor, or the focus moving to another element. Input methods only ask for
+    // the surrounding text when they handle their own events, so reset the context to make them ask for it now.
+    if (m_preedit.text.isEmpty())
+        webkit_input_method_context_reset(m_context.get());
 }
 
 void InputMethodFilter::notifySurroundingToContext()
