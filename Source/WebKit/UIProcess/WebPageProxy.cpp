@@ -5460,6 +5460,17 @@ bool WebPageProxy::hasQueuedKeyEvent() const
     return !internals().keyEventQueue.isEmpty();
 }
 
+#if PLATFORM(GTK) || PLATFORM(WPE)
+bool WebPageProxy::hasQueuedInputMethodKeyEvent() const
+{
+    for (auto& event : internals().keyEventQueue) {
+        if (event->handledByInputMethod())
+            return true;
+    }
+    return false;
+}
+#endif
+
 const NativeWebKeyboardEvent& WebPageProxy::firstQueuedKeyEvent() const
 {
     return internals().keyEventQueue.first();
@@ -15227,6 +15238,15 @@ void WebPageProxy::keyEventHandlingCompleted(bool handled)
     Ref event = internals().keyEventQueue.takeFirst();
 #if PLATFORM(GTK) || PLATFORM(WPE)
     ++internals().completedKeyEventCount;
+    if (event->handledByInputMethod()) {
+        ++internals().handledInputMethodKeyEventCount;
+        // The editor states received while key events of the input method were queued were ignored. Pass the last one
+        // on if the web process sent it after handling all of them. Otherwise, the one it sends after the reply will be.
+        if (!hasQueuedInputMethodKeyEvent() && editorState().handledInputMethodKeyEventCount == internals().handledInputMethodKeyEventCount) {
+            if (RefPtr pageClient = this->pageClient())
+                pageClient->selectionDidChange();
+        }
+    }
     // Send the deletions that waited for this key event before the next one.
     sendPendingDeleteSurroundings();
 #endif
@@ -15953,6 +15973,7 @@ void WebPageProxy::resetStateAfterProcessExited(ProcessTerminationReason termina
     internals().keyEventQueue.clear();
 #if PLATFORM(GTK) || PLATFORM(WPE)
     internals().completedKeyEventCount = internals().queuedKeyEventCount;
+    internals().handledInputMethodKeyEventCount = 0;
     for (auto& deletion : std::exchange(internals().pendingDeleteSurroundings, { }))
         deletion.completionHandler();
 #endif

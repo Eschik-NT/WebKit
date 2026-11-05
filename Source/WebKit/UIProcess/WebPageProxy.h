@@ -2623,6 +2623,9 @@ public:
     bool isHandlingPreventableTouchEnd() const { return m_handlingPreventableTouchEndCount; }
 
     bool LEGACY_NODELETE hasQueuedKeyEvent() const;
+#if PLATFORM(GTK) || PLATFORM(WPE)
+    bool hasQueuedInputMethodKeyEvent() const;
+#endif
     const NativeWebKeyboardEvent& LEGACY_NODELETE firstQueuedKeyEvent() const LIFETIME_BOUND;
 
     void grantAccessToAssetServices();
